@@ -1,54 +1,29 @@
-import os
+"""
+auth.py - Авторизация пользователя
+Пароль хранится внутри приложения (в виде SHA256 хэша)
+"""
+
 import hashlib
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 
-
-def получить_путь_к_файлу(имя_файла):
-    """
-    Работает и в .py, и в .exe (PyInstaller)
-    """
-    if getattr(__import__("sys"), 'frozen', False):
-        base_path = os.path.dirname(__import__("sys").executable)
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-
-    return os.path.join(base_path, имя_файла)
-
+# Хэш пароля по умолчанию (admin123)
+ХЭШ_ПАРОЛЯ = "93ed7071a1c6e55a1ccd873dedc710776895e8faa5ef2cd647d4ba09c30aca3d"
 
 def проверить_пароль():
     root = tk.Tk()
-    root.withdraw()
+    root.withdraw()  # скрываем главное окно
 
-    try:
-        путь = получить_путь_к_файлу("password.txt")
-
-        if not os.path.exists(путь):
-            messagebox.showerror("Ошибка", "Файл password.txt не найден")
-            return False
-
-        with open(путь, "r", encoding="utf-8") as f:
-            сохраненный_хэш = f.read().strip()
-
-        введенный = simpledialog.askstring(
-            "Авторизация",
-            "Введите пароль:",
-            show="*"
-        )
-
+    for попытка in range(3):
+        введенный = simpledialog.askstring("Авторизация", "Введите пароль:", show="*")
         if введенный is None:
             return False
 
-        хэш_введенного = hashlib.sha256(
-            введенный.encode("utf-8")
-        ).hexdigest()
+        хэш_введенного = hashlib.sha256(введенный.encode("utf-8")).hexdigest()
 
-        if хэш_введенного == сохраненный_хэш:
+        if хэш_введенного == ХЭШ_ПАРОЛЯ:
             return True
         else:
-            messagebox.showerror("Ошибка", "Неверный пароль")
-            return False
-
-    except Exception as e:
-        messagebox.showerror("Ошибка", f"Ошибка авторизации:\n{e}")
-        return False
+            messagebox.showerror("Ошибка", f"Неверный пароль ({попытка + 1}/3)")
+    
+    return False
