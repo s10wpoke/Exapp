@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 from generator import ГенераторВедомости
-from exel_export import сохранить_в_excel
+from excel_export import сохранить_в_excel
 
 
 class Приложение(tk.Tk):

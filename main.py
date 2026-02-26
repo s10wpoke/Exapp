@@ -3,14 +3,14 @@ main.py - Точка входа приложения
 """
 
 from auth import проверить_пароль
-from config import получить_настройки
+from config import получить_настройку
 from generator import ГенераторВедомости
-from excel_export import экспорт_в_excel
-from gui import запустить_gui
+from excel_export import сохранить_в_excel
+from gui import создать_excel
 
 
 def main():
-    настройки = получить_настройки()
+    настройки = получить_настройку()
 
     # ------------------------------
     # Проверка пароля

@@ -1,4 +1,4 @@
-from job_data import РаботыБаза
+from works_data import РаботыБаза
 
 class ГенераторВедомости:
     def __init__(self):
