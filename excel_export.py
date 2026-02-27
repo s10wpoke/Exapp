@@ -1,59 +1,90 @@
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
+"""
+exel_export.py - Экспорт ведомости работ в Excel
+"""
 
+import openpyxl
+from openpyxl.styles import PatternFill, Font, Alignment
+from datetime import datetime
+from generator import GeneratorВедомости
+from works_data import РаботыБаза
 
-def сохранить_в_excel(строки, путь_к_файлу):
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Ведомость"
+class ExcelExport:
+    def __init__(self, настройки):
+        """
+        настройки: словарь с параметрами из GUI
+        цвета: цвет_шапки, цвет_основной, цвет_второстепенный
+        путь_сохранения, формат_имени
+        """
+        self.настройки = настройки
+        self.генератор = GeneratorВедомости()
+        self.работы = РаботыБаза().работы_база
 
-    # ===== СТИЛИ =====
-    жирный = Font(bold=True)
-    выравнивание_центр = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    def сохранить_в_excel(self, выбранные_работы, путь=None):
+        """
+        выбранные_работы: список ключей из базы работ (str)
+        путь: путь сохранения файла (по умолчанию из настроек)
+        """
+        # Создаем книгу и лист
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Ведомость работ"
 
-    тонкая_граница = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin")
-    )
+        # Цвета
+        fill_шапка = PatternFill(start_color=self.настройки['цвет_шапки'], end_color=self.настройки['цвет_шапки'], fill_type="solid")
+        fill_основной = PatternFill(start_color=self.настройки['цвет_основной'], end_color=self.настройки['цвет_основной'], fill_type="solid")
+        fill_второстепенный = PatternFill(start_color=self.настройки['цвет_второстепенный'], end_color=self.настройки['цвет_второстепенный'], fill_type="solid")
+        
+        # Заголовки
+        заголовки = ["№", "Раздел", "Вид работы", "Формула", "Ед.изм.", "Значение"]
+        ws.append(заголовки)
+        for col in range(1, len(заголовки)+1):
+            ws.cell(row=1, column=col).fill = fill_шапка
+            ws.cell(row=1, column=col).font = Font(bold=True)
+            ws.cell(row=1, column=col).alignment = Alignment(horizontal='center', vertical='center')
 
-    # Цвета (можешь заменить на свои)
-    цвет_помещение = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-    цвет_раздел = PatternFill(start_color="EFEFEF", end_color="EFEFEF", fill_type="solid")
+        текущий_порядок = 1
+        row_idx = 2
 
-    # ===== ШИРИНА КОЛОНОК =====
-    ширины = [5, 50, 15, 10]
-    for i, ширина in enumerate(ширины, start=1):
-        ws.column_dimensions[get_column_letter(i)].width = ширина
+        for работа_key in выбранные_работы:
+            if работа_key not in self.работы:
+                continue
+            работа = self.работы[работа_key]
+            раздел = работа["раздел"]
+            for item in работа["работы"]:
+                вид = item["вид"]
 
-    # ===== ЗАПИСЬ ДАННЫХ =====
-    for row_index, строка in enumerate(строки, start=1):
-        for col_index, значение in enumerate(строка, start=1):
-            cell = ws.cell(row=row_index, column=col_index, value=значение)
-            cell.border = тонкая_граница
-            cell.alignment = Alignment(vertical="center")
+                # Подставляем размеры плитки, если есть
+                if "размер" in item and item["размер"]:
+                    размер = self.настройки.get("размер_плитки", "60x60")
+                    вид = вид.format(размер=размер)
 
-        # Простейшая логика форматирования (если ты передаёшь тип строки)
-        if isinstance(строка, dict):
-            тип = строка.get("type")
+                формула = item.get("формула", "")
+                ед = item.get("ед", "")
+                значение = self.генератор.рассчитать(формула)
 
-            if тип == "room":
-                for col in range(1, 5):
-                    cell = ws.cell(row=row_index, column=col)
-                    cell.fill = цвет_помещение
-                    cell.font = жирный
+                ws.append([текущий_порядок, раздел, вид, формула, ед, значение])
 
-            elif тип == "section":
-                for col in range(1, 5):
-                    cell = ws.cell(row=row_index, column=col)
-                    cell.fill = цвет_раздел
-                    cell.font = жирный
+                # Цвет строк: основной/второстепенный чередование
+                fill = fill_основной if текущий_порядок % 2 else fill_второстепенный
+                for col in range(1, 7):
+                    ws.cell(row=row_idx, column=col).fill = fill
+                row_idx += 1
+                текущий_порядок += 1
 
-    # ===== АВТОВЫРАВНИВАНИЕ =====
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.alignment = Alignment(vertical="center", wrap_text=True)
+        # Автоподбор ширины колонок
+        for col in ws.columns:
+            max_length = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            ws.column_dimensions[col_letter].width = max_length + 2
 
-    wb.save(путь_к_файлу)
+        # Имя файла
+        if путь is None:
+            путь = self.настройки.get("путь_сохранения", "")
+        имя_файла = datetime.now().strftime(self.настройки.get("формат_имени", "Ведомость_%Y%m%d_%H%M")) + ".xlsx"
+        полный_путь = путь + "/" + имя_файла if путь else имя_файла
+
+        wb.save(полный_путь)
+        return полный_путь
