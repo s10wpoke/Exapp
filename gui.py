@@ -1,93 +1,78 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, messagebox
+from generator import создать_ведомость
+from works_data import РаботыБаза
 
-from generator import ГенераторВедомости
-from excel_export import сохранить_в_excel
+class Приложение:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Генератор ведомости работ")
+        self.база = РаботыБаза()
 
+        self.создать_widgets()
 
-class Приложение(tk.Tk):
-    def __init__(self):
-        super().__init__()
+    def создать_widgets(self):
+        frm = ttk.Frame(self.root, padding=10)
+        frm.grid(row=0, column=0, sticky="nsew")
 
-        self.title("Генератор ведомости работ")
-        self.geometry("900x600")
+        # Настройки окна
+        ttk.Label(frm, text="Тип окна:").grid(row=0, column=0, sticky="w")
+        self.тип_окна_var = tk.StringVar(value=self.база.тип_окна)
+        тип_окна_options = ["двухстворчатое", "одностворчатое", "триплекс"]
+        ttk.OptionMenu(frm, self.тип_окна_var, self.база.тип_окна, *тип_окна_options).grid(row=0, column=1, sticky="ew")
 
-        self.generator = ГенераторВедомости()
+        ttk.Label(frm, text="Ширина окна (м):").grid(row=1, column=0, sticky="w")
+        self.ширина_окна_var = tk.DoubleVar(value=self.база.ширина_окна)
+        ttk.Entry(frm, textvariable=self.ширина_окна_var).grid(row=1, column=1, sticky="ew")
 
-        self.помещения = []
+        ttk.Label(frm, text="Высота окна (м):").grid(row=2, column=0, sticky="w")
+        self.высота_окна_var = tk.DoubleVar(value=self.база.высота_окна)
+        ttk.Entry(frm, textvariable=self.высота_окна_var).grid(row=2, column=1, sticky="ew")
 
-        self._создать_интерфейс()
+        # Настройки плитки
+        ttk.Label(frm, text="Размер плитки (мм):").grid(row=3, column=0, sticky="w")
+        self.размер_плитки_var = tk.StringVar(value=self.база.размер_плитки)
+        ttk.Entry(frm, textvariable=self.размер_плитки_var).grid(row=3, column=1, sticky="ew")
 
-    # =========================
-    # СОЗДАНИЕ ИНТЕРФЕЙСА
-    # =========================
+        # Отклонения стен и дверей
+        ttk.Label(frm, text="Отклонение откосов окна (м):").grid(row=4, column=0, sticky="w")
+        self.откос_окна_var = tk.DoubleVar(value=self.база.откос_окна)
+        ttk.Entry(frm, textvariable=self.откос_окна_var).grid(row=4, column=1, sticky="ew")
 
-    def _создать_интерфейс(self):
+        ttk.Label(frm, text="Отклонение откосов двери (м):").grid(row=5, column=0, sticky="w")
+        self.откос_двери_var = tk.DoubleVar(value=self.база.откос_двери)
+        ttk.Entry(frm, textvariable=self.откос_двери_var).grid(row=5, column=1, sticky="ew")
 
-        # ===== Верхняя панель =====
-        верхний_фрейм = ttk.Frame(self)
-        верхний_фрейм.pack(fill="x", padx=10, pady=5)
+        ttk.Label(frm, text="Высота помещения (м):").grid(row=6, column=0, sticky="w")
+        self.высота_помещения_var = tk.DoubleVar(value=self.база.высота_помещения)
+        ttk.Entry(frm, textvariable=self.высота_помещения_var).grid(row=6, column=1, sticky="ew")
 
-        ttk.Label(верхний_фрейм, text="Название помещения:").pack(side="left")
+        # Кнопка создания Excel
+        ttk.Button(frm, text="Создать Excel", command=self.собрать_данные).grid(row=7, column=0, columnspan=2, pady=10)
 
-        self.entry_помещение = ttk.Entry(верхний_фрейм, width=30)
-        self.entry_помещение.pack(side="left", padx=5)
+        # Настройка растяжки колонок
+        frm.columnconfigure(1, weight=1)
 
-        ttk.Button(
-            верхний_фрейм,
-            text="Добавить помещение",
-            command=self.добавить_помещение
-        ).pack(side="left", padx=5)
-
-        ttk.Button(
-            верхний_фрейм,
-            text="Создать Excel",
-            command=self.создать_excel
-        ).pack(side="right")
-
-        # ===== Список помещений =====
-        self.tree = ttk.Treeview(self, columns=("room",), show="headings")
-        self.tree.heading("room", text="Помещения")
-        self.tree.pack(fill="both", expand=True, padx=10, pady=10)
-
-    # =========================
-    # ЛОГИКА GUI
-    # =========================
-
-    def добавить_помещение(self):
-        название = self.entry_помещение.get().strip()
-
-        if not название:
-            messagebox.showwarning("Ошибка", "Введите название помещения")
-            return
-
-        self.помещения.append({
-            "название": название,
-            "работы": []  # сюда позже добавим выбранные работы
-        })
-
-        self.tree.insert("", "end", values=(название,))
-        self.entry_помещение.delete(0, tk.END)
-
-    def создать_excel(self):
-        if not self.помещения:
-            messagebox.showwarning("Ошибка", "Нет помещений")
-            return
+    def собрать_данные(self):
+        # Обновляем базу
+        self.база.тип_окна = self.тип_окна_var.get()
+        self.база.ширина_окна = self.ширина_окна_var.get()
+        self.база.высота_окна = self.высота_окна_var.get()
+        self.база.размер_плитки = self.размер_плитки_var.get()
+        self.база.откос_окна = self.откос_окна_var.get()
+        self.база.откос_двери = self.откос_двери_var.get()
+        self.база.высота_помещения = self.высота_помещения_var.get()
 
         try:
-            строки = self.generator.создать_ведомость(self.помещения)
-
-            путь = filedialog.asksaveasfilename(
-                defaultextension=".xlsx",
-                filetypes=[("Excel files", "*.xlsx")]
-            )
-
-            if not путь:
-                return
-
-            сохранить_в_excel(строки, путь)
-
-            messagebox.showinfo("Успех", "Файл успешно сохранён")
-
+            создать_ведомость(self.база)
+            messagebox.showinfo("Готово", "Excel успешно создан!")
         except Exception as e:
-            messagebox.showerror("Ошибка", f"Ошибка при создании файла:\n{e}")
+            messagebox.showerror("Ошибка", f"Ошибка при создании Excel:\n{e}")
+
+def запустить_gui():
+    root = tk.Tk()
+    app = Приложение(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    запустить_gui()
