@@ -1,29 +1,30 @@
-"""
-auth.py - Авторизация пользователя
-Пароль хранится внутри приложения (в виде SHA256 хэша)
-"""
-
+# auth.py
 import hashlib
-import tkinter as tk
-from tkinter import simpledialog, messagebox
 
-# Хэш пароля по умолчанию (admin123)
-ХЭШ_ПАРОЛЯ = "93ed7071a1c6e55a1ccd873dedc710776895e8faa5ef2cd647d4ba09c30aca3d"
+# =========================
+# Встроенный хэш пароля
+# =========================
+# По умолчанию: admin123
+ПАРОЛЬ_ХЭШ = "93ed7071a1c6e55a1ccd873dedc710776895e8faa5ef2cd647d4ba09c30aca3d"
 
-def проверить_пароль():
-    root = tk.Tk()
-    root.withdraw()  # скрываем главное окно
 
-    for попытка in range(3):
-        введенный = simpledialog.askstring("Авторизация", "Введите пароль:", show="*")
-        if введенный is None:
-            return False
+def проверить_пароль(пароль: str) -> bool:
+    """
+    Проверяет введенный пароль.
+    :param пароль: строка пароля
+    :return: True если пароль верный, иначе False
+    """
+    if not пароль:
+        return False
+    введенный_хэш = hashlib.sha256(пароль.encode()).hexdigest()
+    return введенный_хэш == ПАРОЛЬ_ХЭШ
 
-        хэш_введенного = hashlib.sha256(введенный.encode("utf-8")).hexdigest()
 
-        if хэш_введенного == ХЭШ_ПАРОЛЯ:
-            return True
-        else:
-            messagebox.showerror("Ошибка", f"Неверный пароль ({попытка + 1}/3)")
-    
-    return False
+def изменить_пароль(новый_пароль: str) -> str:
+    """
+    Генерирует новый хэш для пароля.
+    Используется только для подготовки новой версии EXE.
+    :param новый_пароль: новый пароль
+    :return: хэш SHA-256 для замены в коде
+    """
+    return hashlib.sha256(новый_пароль.encode()).hexdigest()
